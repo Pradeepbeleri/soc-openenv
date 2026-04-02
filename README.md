@@ -2,10 +2,10 @@
 
 > A reinforcement learning environment built for the Meta PyTorch OpenEnv Hackathon.
 
-This environment simulates a simple **SOC (Security Operations Center)** incident response workflow where the agent must identify a malicious IP, monitor it, and block it using the OpenEnv-style interface.
+TThis environment simulates a SOC incident response workflow where the agent must infer, investigate, and mitigate a malicious IP using structured observations and actions.
 
 ---
-
+.
 ## ✨ Features
 
 - 🚀 FastAPI-based local server
@@ -214,7 +214,7 @@ Before submitting to the hackathon, ensure you have:
 - ✓ `requirements.txt` with all dependencies
 - ✓ `README.md` with clear documentation
 - ✓ Demo script (`inference.py`)
-- ✓ Deployed Hugging Face Spaces demo URL (optional but recommended)
+- ✓ Deployed Hugging Face Spaces demo URL
 - ✓ `Dockerfile` for reproducibility
 - ✓ `openenv.yaml` for OpenEnv compliance
 
