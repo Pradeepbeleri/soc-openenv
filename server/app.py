@@ -1,9 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
 from env.environment import OpenEnvSOCEnvironment
 from typing import Optional
-from fastapi import Body, HTTPException
-
 
 app = FastAPI(title="SOC Analyst OpenEnv Environment")
 
@@ -47,6 +45,11 @@ def step(req: StepRequest):
 def state():
     return env.get_state()
 
-@app.get("/state")
-def state():
-    return env.get_state()
+
+def main():
+    import uvicorn
+    uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
+
+
+if __name__ == "__main__":
+    main()
