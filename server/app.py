@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from env.environment import OpenEnvSOCEnvironment
+from typing import Optional
+from fastapi import Body, HTTPException
+
 
 app = FastAPI(title="SOC Analyst OpenEnv Environment")
 
@@ -22,9 +25,10 @@ def root():
 
 
 @app.post("/reset")
-def reset(req: ResetRequest):
+def reset(req: Optional[ResetRequest] = Body(default=None)):
     try:
-        observation = env.reset(task=req.task)
+        task = req.task if req and req.task else "easy"
+        observation = env.reset(task=task)
         return observation
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -38,6 +42,10 @@ def step(req: StepRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+@app.get("/state")
+def state():
+    return env.get_state()
 
 @app.get("/state")
 def state():
