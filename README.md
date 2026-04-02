@@ -2,8 +2,7 @@
 
 > A reinforcement learning environment built for the Meta PyTorch OpenEnv Hackathon.
 
-TThis environment simulates a SOC incident response workflow where the agent must infer, investigate, and mitigate a malicious IP using structured observations and actions.
-
+This environment simulates a SOC incident response workflow where the agent must infer, investigate, and mitigate a malicious IP using structured observations and actions.
 ---
 .
 ## ✨ Features
