@@ -1,0 +1,9 @@
+[project]
+name = "soc-analyst-openenv"
+version = "1.0.0"
+description = "SOC incident response environment for OpenEnv hackathon"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.black]
+line-length = 100

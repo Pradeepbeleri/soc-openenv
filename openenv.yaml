@@ -1,0 +1,5 @@
+name: soc-analyst-openenv
+version: 1.0.0
+description: SOC incident response environment for the Meta PyTorch OpenEnv Hackathon
+entrypoint: server.app:app
+framework: openenv
