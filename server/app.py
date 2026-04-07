@@ -1,44 +1,42 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from env.environment import OpenEnvSOCEnvironment
+from typing import Any, Dict, Optional
+from env.environment import SOCEnvironment
 
-app = FastAPI(title="SOC Analyst OpenEnv Environment")
-
-env = OpenEnvSOCEnvironment()
+app = FastAPI()
+env = SOCEnvironment()
 
 
 class ResetRequest(BaseModel):
-    task: str = "easy"
+    task: Optional[str] = "easy"
 
 
 class StepRequest(BaseModel):
     type: str
-    target: str
+    target: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
 
 
-@app.get("/")
-def root():
-    return {"message": "SOC Analyst OpenEnv Environment is running"}
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 @app.post("/reset")
 def reset(req: ResetRequest):
-    try:
-        observation = env.reset(task=req.task)
-        return observation
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/step")
-def step(req: StepRequest):
-    try:
-        result = env.step(action_type=req.type, target=req.target)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return {"state": env.reset(task=req.task or "easy")}
 
 
 @app.get("/state")
 def state():
     return env.get_state()
+
+
+@app.post("/step")
+def step(req: StepRequest):
+    try:
+        return env.step(
+            {"type": req.type, "target": req.target, "details": req.details or {}}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -1,25 +1,31 @@
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
+from env.models import EnvironmentState
 
 
-class SOCGrader:
-    def score(self, state: Dict[str, Any]) -> float:
-        """
-        Simple offline scoring logic.
-        Higher score if the correct sequence was followed with fewer steps.
-        """
-        history = state.get("history", [])
-        step_count = state.get("step_count", 0)
-        done = state.get("done", False)
+def grade_action(state: EnvironmentState, action: Dict[str, Any]) -> Tuple[float, bool, str | None]:
+    action_type = action.get("type")
+    target = action.get("target")
 
-        if not done:
-            return 0.0
+    if not action_type:
+        return 0.0, False, "Missing action type"
 
-        base = 0.7
+    if action_type == "monitor":
+        if not target:
+            return 0.1, False, "Missing target for monitor"
+        if target == state.attack_ip:
+            return 0.4, False, None
+        return 0.2, False, "Target does not match attack_ip"
 
-        if any(h.startswith("monitor(") for h in history):
-            base += 0.1
-        if any(h.startswith("block_ip(") for h in history):
-            base += 0.15
+    if action_type == "block_ip":
+        if not target:
+            return 0.1, False, "Missing target for block_ip"
+        if target == state.attack_ip:
+            return 0.8, False, None
+        return 0.2, False, "Blocked wrong IP"
 
-        efficiency_bonus = max(0.0, 0.15 - 0.03 * max(0, step_count - 2))
-        return round(min(1.0, base + efficiency_bonus), 2)
+    if action_type == "close_incident":
+        if state.score < 0.8:
+            return 0.0, False, "Insufficient score to close incident"
+        return 1.0, True, None
+
+    return 0.0, False, f"Unknown action type: {action_type}"

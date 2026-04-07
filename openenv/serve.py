@@ -1,41 +1,42 @@
-"""
-OpenEnv FastAPI Server for SOC Analyst Environment
----------------------------------------------------
-Provides HTTP endpoints for environment interaction.
-Compliant with OpenEnv 2026 specification.
-"""
-from fastapi import FastAPI
-from env.environment import SOCEnv
-from env.models import Action
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Any, Dict, Optional
+from env.environment import SOCEnvironment
 
 app = FastAPI()
-env = SOCEnv()
+env = SOCEnvironment()
+
+
+class ResetRequest(BaseModel):
+    task: Optional[str] = "easy"
+
+
+class StepRequest(BaseModel):
+    type: str
+    target: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 
 @app.post("/reset")
-def reset(data: dict):
-    """Reset environment and return initial observation."""
-    task = data.get("task", "easy")
-    obs = env.reset(task)
-    return obs.model_dump()
+def reset(req: ResetRequest):
+    return {"state": env.reset(task=req.task or "easy")}
 
-@app.post("/step")
-def step(action: Action):
-    """Execute action and return (observation, reward, done, info)."""
-    obs, reward, done, info = env.step(action)
-    return {
-        "observation": obs.model_dump(),
-        "reward": reward,
-        "done": done,
-        "info": info
-    }
 
 @app.get("/state")
 def state():
-    """Get current environment state for grading."""
-    return env.state()
+    return env.get_state()
 
-@app.post("/close")
-def close():
-    """Reset environment."""
-    env.reset()
-    return {"status": "closed"}
+
+@app.post("/step")
+def step(req: StepRequest):
+    try:
+        return env.step(
+            {"type": req.type, "target": req.target, "details": req.details or {}}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
