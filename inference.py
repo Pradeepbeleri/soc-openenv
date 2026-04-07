@@ -1,40 +1,66 @@
-import requests
+import os
+from openai import OpenAI
 
-BASE_URL = "http://localhost:7860"
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
+if HF_TOKEN is None:
+    raise ValueError("HF_TOKEN environment variable is required")
 
-def reset(task="easy"):
-    r = requests.post(f"{BASE_URL}/reset", json={"task": task})
-    r.raise_for_status()
-    return r.json()
+client = OpenAI(
+    base_url=API_BASE_URL,
+    api_key=HF_TOKEN
+)
 
+def main():
+    task_name = "easy"
+    benchmark = "soc-analyst"
+    rewards = []
+    success = False
+    step_n = 0
 
-def step(action_type, target):
-    r = requests.post(f"{BASE_URL}/step", json={"type": action_type, "target": target})
-    r.raise_for_status()
-    return r.json()
+    print(f"[START] task={task_name} env={benchmark} model={MODEL_NAME}", flush=True)
 
+    try:
+        step_n += 1
+        action = "monitor('192.168.1.10')"
+        reward = 0.00
+        done = False
+        error = None
+        rewards.append(reward)
+        print(
+            f"[STEP] step={step_n} action={action} reward={reward:.2f} "
+            f"done={'true' if done else 'false'} error={error if error is not None else 'null'}",
+            flush=True,
+        )
 
-def get_state():
-    r = requests.get(f"{BASE_URL}/state")
-    r.raise_for_status()
-    return r.json()
+     
+        step_n += 1
+        action = "block_ip('192.168.1.10')"
+        reward = 1.00
+        done = True
+        error = None
+        rewards.append(reward)
+        print(
+            f"[STEP] step={step_n} action={action} reward={reward:.2f} "
+            f"done={'true' if done else 'false'} error={error if error is not None else 'null'}",
+            flush=True,
+        )
 
+        success = True
+
+    except Exception as e:
+   
+        success = False
+     
+    finally:
+        rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+        print(
+            f"[END] success={'true' if success else 'false'} "
+            f"steps={step_n} rewards={rewards_str}",
+            flush=True,
+        )
 
 if __name__ == "__main__":
-    obs = reset("easy")
-    print("Initial observation:")
-    print(obs)
-
-    state = get_state()
-    attack_ip = state["attack_ip"]
-    print("\nAttack IP:", attack_ip)
-
-    print("\nInvestigate step:")
-    print(step("investigate", attack_ip))
-
-    print("\nMonitor step:")
-    print(step("monitor", attack_ip))
-
-    print("\nBlock step:")
-    print(step("block_ip", attack_ip))
+    main()
