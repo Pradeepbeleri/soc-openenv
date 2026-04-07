@@ -2,6 +2,7 @@
 
 Build an AI agent for incident response in a simulated Security Operations Center (SOC) workflow.
 
+<<<<<<< HEAD
 This OpenEnv environment lets participants create reinforcement-learning agents that detect suspicious activity, monitor network behavior, block malicious IPs, and complete incident response actions in a structured workflow.
 
 ## Why this project?
@@ -10,6 +11,12 @@ This OpenEnv environment lets participants create reinforcement-learning agents 
 - OpenEnv-compatible environment design
 - Clear task progression for RL agents
 - Built for reproducible local testing and Hugging Face Spaces deployment
+=======
+This environment simulates a SOC incident response workflow where the agent must infer, investigate, and mitigate a malicious IP using structured observations and actions.
+---
+.
+## ✨ Features
+>>>>>>> b4475615ffce2eaa5df0e35e07cbd599427eab78
 
 ## Quick Start
 
@@ -142,7 +149,28 @@ Before submitting, ensure the following are included:
 - The deployed demo on Hugging Face Spaces should demonstrate the environment end-to-end
 - `HF_TOKEN` is required; the script will raise an error if missing
 
+<<<<<<< HEAD
 ## License
+=======
+---
+
+## ✅ Submission Checklist
+
+Before submitting to the hackathon, ensure you have:
+
+- ✓ Public GitHub repository
+- ✓ Environment source code (`env/`)
+- ✓ `requirements.txt` with all dependencies
+- ✓ `README.md` with clear documentation
+- ✓ Demo script (`inference.py`)
+- ✓ Deployed Hugging Face Spaces demo URL
+- ✓ `Dockerfile` for reproducibility
+- ✓ `openenv.yaml` for OpenEnv compliance
+
+---
+
+## 📄 License
+>>>>>>> b4475615ffce2eaa5df0e35e07cbd599427eab78
 
 For hackathon submission and educational use.
 

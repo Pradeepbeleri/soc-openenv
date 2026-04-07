@@ -1,7 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
+<<<<<<< HEAD
 from typing import Any, Dict, Optional
 from env.environment import SOCEnvironment
+=======
+from env.environment import OpenEnvSOCEnvironment
+from typing import Optional
+>>>>>>> b4475615ffce2eaa5df0e35e07cbd599427eab78
 
 app = FastAPI()
 env = SOCEnvironment()
@@ -23,6 +28,7 @@ def health():
 
 
 @app.post("/reset")
+<<<<<<< HEAD
 def reset(req: ResetRequest):
     return {"state": env.reset(task=req.task or "easy")}
 
@@ -30,13 +36,43 @@ def reset(req: ResetRequest):
 @app.get("/state")
 def state():
     return env.get_state()
+=======
+def reset(req: Optional[ResetRequest] = Body(default=None)):
+    try:
+        task = req.task if req and req.task else "easy"
+        observation = env.reset(task=task)
+        return observation
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+>>>>>>> b4475615ffce2eaa5df0e35e07cbd599427eab78
 
 
 @app.post("/step")
 def step(req: StepRequest):
     try:
+<<<<<<< HEAD
         return env.step(
             {"type": req.type, "target": req.target, "details": req.details or {}}
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+=======
+        result = env.step(action_type=req.type, target=req.target)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/state")
+def state():
+    return env.get_state()
+
+
+def main():
+    import uvicorn
+    uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
+
+
+if __name__ == "__main__":
+    main()
+>>>>>>> b4475615ffce2eaa5df0e35e07cbd599427eab78
