@@ -36,6 +36,7 @@ inference.py         # Demo script for agent reasoning (LLM-driven)
 requirements.txt     # Python dependencies
 Dockerfile           # Container build file
 README.md            # Project documentation
+openenv.yaml
 ```
 
 ---
@@ -66,7 +67,7 @@ In a separate terminal, set your environment variables and run the agent:
 
 ```bash
 # Set environment variables (PowerShell)
-$env:API_KEY="your_api_key"
+$env:HF_TOKEN="your_api_key"
 $env:API_BASE_URL="https://api.openai.com/v1"
 $env:MODEL_NAME="gpt-4o-mini"
 $env:ENV_BASE_URL="http://localhost:7860"
