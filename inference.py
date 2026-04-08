@@ -14,11 +14,10 @@ ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
 if HF_TOKEN is None:
     raise ValueError("HF_TOKEN environment variable is required")
 
-client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
-
-
-if HF_TOKEN is None:
-    raise ValueError("HF_TOKEN environment variable is required")
+client = OpenAI(
+    base_url=API_BASE_URL,
+    api_key=HF_TOKEN,
+)
 
 
 def fmt_err(err: Optional[Any]) -> str:
@@ -50,40 +49,11 @@ def env_get(path: str) -> Dict[str, Any]:
     r.raise_for_status()
     return r.json()
 
-client = OpenAI(
-    base_url=API_BASE_URL,
-    api_key=HF_TOKEN
-)
-
-
-def main():
-    task_name = "easy"
-    benchmark = "soc-analyst"
-    rewards = []
-    success = False
-    step_n = 0
-
 
 def env_post(path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     r = requests.post(f"{ENV_BASE_URL}{path}", json=payload, timeout=60)
     r.raise_for_status()
     return r.json()
-
-    print(f"[START] task={task_name} env={benchmark} model={MODEL_NAME}", flush=True)
-
-
-    try:
-        step_n += 1
-        action = "monitor('192.168.1.10')"
-        reward = 0.00
-        done = False
-        error = None
-        rewards.append(reward)
-        print(
-            f"[STEP] step={step_n} action={action} reward={reward:.2f} "
-            f"done={'true' if done else 'false'} error={error if error is not None else 'null'}",
-            flush=True,
-        )
 
 
 def get_error(result: Dict[str, Any]) -> Optional[Any]:
@@ -108,82 +78,38 @@ def main() -> None:
         state = env_get("/state")
         attack_ip = state.get("attack_ip", "192.168.1.234")
 
-        # Step 1: monitor
         result = env_post("/step", {"type": "monitor", "target": attack_ip, "details": {}})
         steps += 1
         reward = float(result.get("reward", 0.0))
         rewards.append(reward)
-        print_step(
-            steps,
-            f"monitor('{attack_ip}')",
-            reward,
-            bool(result.get("done", False)),
-            get_error(result),
-        )
+        done = bool(result.get("done", False))
+        print_step(steps, f"monitor('{attack_ip}')", reward, done, get_error(result))
 
-        # Step 2: block_ip
-        if not bool(result.get("done", False)):
+        if not done:
             result = env_post("/step", {"type": "block_ip", "target": attack_ip, "details": {}})
             steps += 1
             reward = float(result.get("reward", 0.0))
             rewards.append(reward)
-            print_step(
-                steps,
-                f"block_ip('{attack_ip}')",
-                reward,
-                bool(result.get("done", False)),
-                get_error(result),
-            )
+            done = bool(result.get("done", False))
+            print_step(steps, f"block_ip('{attack_ip}')", reward, done, get_error(result))
 
-        # Step 3: close_incident
-        if not bool(result.get("done", False)):
+        if not done:
             result = env_post("/step", {"type": "close_incident", "details": {}})
             steps += 1
             reward = float(result.get("reward", 0.0))
             rewards.append(reward)
-            print_step(
-                steps,
-                "close_incident()",
-                reward,
-                bool(result.get("done", False)),
-                get_error(result),
-            )
+            done = bool(result.get("done", False))
+            print_step(steps, "close_incident()", reward, done, get_error(result))
 
-        success = bool(result.get("done", False))
+        success = done
 
     except Exception:
         traceback.print_exc(file=sys.stderr)
         success = False
+
     finally:
         print_end(success, steps, rewards)
 
-     
-        step_n += 1
-        action = "block_ip('192.168.1.10')"
-        reward = 1.00
-        done = True
-        error = None
-        rewards.append(reward)
-        print(
-            f"[STEP] step={step_n} action={action} reward={reward:.2f} "
-            f"done={'true' if done else 'false'} error={error if error is not None else 'null'}",
-            flush=True,
-        )
-
-        success = True
-
-    except Exception as e:
-   
-        success = False
-     
-    finally:
-        rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-        print(
-            f"[END] success={'true' if success else 'false'} "
-            f"steps={step_n} rewards={rewards_str}",
-            flush=True,
-        )
 
 if __name__ == "__main__":
     main()
-
