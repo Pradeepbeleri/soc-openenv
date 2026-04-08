@@ -20,7 +20,7 @@ This project provides a high-fidelity environment where AI agents act as SOC Ana
 
 ## 🏗️ Project Structure
 
-```text
+```
 .
 ├── env/
 │   ├── environment.py   # Core SOC logic (States & Transitions)
@@ -33,10 +33,10 @@ This project provides a high-fidelity environment where AI agents act as SOC Ana
 ├── Dockerfile           # Containerization for reproducibility
 ├── openenv.yaml         # OpenEnv configuration file
 └── README.md            # Project documentation
-
+```
 🚀 Quick Start1.
-Local SetupCreate and activate a virtual environment, then install dependencies:
-PowerShell# Create environment
+1.Local Setup
+# Create environment
 python -m venv venv
 
 # Activate (Windows)
@@ -44,10 +44,16 @@ python -m venv venv
 
 # Install dependencies
 pip install -r requirements.txt
-2. Start the Environment ServerRun the FastAPI backend using Uvicorn:
-PowerShell
+
+2. Start the Environment Server
+Run the FastAPI backend using Uvicorn:
+Powershell:
 uvicorn server.app:app --host 0.0.0.0 --port 7860
-3. Run Inference (The Agent)In a separate terminal, set your environment variables and run the agent:PowerShell# Set Environment Variables
+
+3. Run Inference (The Agent)
+In a separate terminal, set your environment variables and run the agent:
+Powershell:
+# Set Environment Variables
 $env:API_KEY="your_api_key"
 $env:API_BASE_URL="[https://api.openai.com/v1](https://api.openai.com/v1)"
 $env:MODEL_NAME="gpt-4o-mini"
@@ -56,6 +62,7 @@ $env:TASK_NAME="easy"
 
 # Run Agent
 python inference.py
+
 🕹️ Workflow & ActionsThe environment follows a strictly ordered incident response lifecycle:
 monitor: Inspect suspicious IPs to gather log evidence.
 block_ip: Mitigate the threat by blocking the confirmed malicious IP.
