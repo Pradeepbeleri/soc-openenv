@@ -46,7 +46,7 @@ class SOCEnvironment:
         elif self.state.task == "task_3":
             reward = grade_task_3(action)
         else:
-            reward = 0.01
+            reward = 0.50
 
         return max(0.01, min(0.99, float(reward)))
 
