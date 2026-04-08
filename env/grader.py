@@ -1,12 +1,7 @@
-
-
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 
 def clamp_open_interval(score: float) -> float:
-    """
-    Force score to be strictly inside (0, 1).
-    """
     if score <= 0.0:
         return 0.01
     if score >= 1.0:
@@ -14,26 +9,7 @@ def clamp_open_interval(score: float) -> float:
     return round(score, 2)
 
 
-def grade_action(result: Dict[str, Any]) -> float:
-    """
-    Compatibility hook expected by env/environment.py.
-    """
-    score = 0.0
-
-    if result.get("valid_action"):
-        score += 0.34
-    if result.get("progress_made"):
-        score += 0.33
-    if result.get("safe_action"):
-        score += 0.33
-
-    return clamp_open_interval(score)
-
-
 def grade_task_1(result: Dict[str, Any]) -> float:
-    """
-    Task 1 grader.
-    """
     score = 0.0
     if result.get("task_1_complete"):
         score += 0.6
@@ -45,9 +21,6 @@ def grade_task_1(result: Dict[str, Any]) -> float:
 
 
 def grade_task_2(result: Dict[str, Any]) -> float:
-    """
-    Task 2 grader.
-    """
     score = 0.0
     if result.get("task_2_complete"):
         score += 0.6
@@ -59,9 +32,6 @@ def grade_task_2(result: Dict[str, Any]) -> float:
 
 
 def grade_task_3(result: Dict[str, Any]) -> float:
-    """
-    Task 3 grader.
-    """
     score = 0.0
     if result.get("task_3_complete"):
         score += 0.6
@@ -72,12 +42,19 @@ def grade_task_3(result: Dict[str, Any]) -> float:
     return clamp_open_interval(score)
 
 
-def grade_submission(result: Dict[str, Any]) -> Dict[str, float]:
-    """
-    Main scoring entry point with 3 graded tasks.
-    """
-    return {
-        "task_1": grade_task_1(result),
-        "task_2": grade_task_2(result),
-        "task_3": grade_task_3(result),
-    }
+def grade_action(state, action):
+    # temporary compatible hook
+    result = action if isinstance(action, dict) else {}
+
+    if state.task == "task_1":
+        reward = grade_task_1(result)
+    elif state.task == "task_2":
+        reward = grade_task_2(result)
+    elif state.task == "task_3":
+        reward = grade_task_3(result)
+    else:
+        reward = 0.01
+
+    done = False
+    error = None
+    return reward, done, error
