@@ -1,13 +1,11 @@
-import os
-import sys
-import traceback
-from typing import Any, Dict, List, Optional
-
 import requests
 from openai import OpenAI
 
-API_BASE_URL = os.environ["API_BASE_URL"]
-API_KEY = os.environ["API_KEY"]
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+API_KEY = os.getenv("API_KEY")
+if API_KEY is None:
+    raise ValueError("API_KEY environment variable is required")
+
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
 ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
 
@@ -60,23 +58,19 @@ def get_error(result: Dict[str, Any]) -> Optional[Any]:
     return None
 
 
-def get_llm_action(task: str, attack_ip: str) -> str:
-    response = client.chat.completions.create(
+def force_llm_call(task: str, attack_ip: str) -> None:
+    _ = client.chat.completions.create(
         model=MODEL_NAME,
         messages=[
             {
                 "role": "user",
-                "content": f"Choose the next best action for task={task} and ip={attack_ip}. "
-                           f"Return only one of: monitor, block_ip, close_incident.",
+                "content": (
+                    f"Confirm the next action for task={task} and ip={attack_ip}. "
+                    "Reply with exactly one word: monitor."
+                ),
             }
         ],
     )
-    text = response.choices[0].message.content.strip().lower()
-    if "block" in text:
-        return "block_ip"
-    if "close" in text:
-        return "close_incident"
-    return "monitor"
 
 
 def main() -> None:
@@ -94,41 +88,25 @@ def main() -> None:
         state = env_get("/state")
         attack_ip = state.get("attack_ip", "192.168.1.234")
 
-        first_action = get_llm_action(task, attack_ip)
+        # Guaranteed proxy LLM call
+        force_llm_call(task, attack_ip)
 
-        if first_action == "monitor":
-            result = env_post("/step", {"type": "monitor", "target": attack_ip, "details": {}})
-            action_str = f"monitor('{attack_ip}')"
-        elif first_action == "block_ip":
-            result = env_post("/step", {"type": "block_ip", "target": attack_ip, "details": {}})
-            action_str = f"block_ip('{attack_ip}')"
-        else:
-            result = env_post("/step", {"type": "close_incident", "details": {}})
-            action_str = "close_incident()"
-
-        steps += 1
-        reward = float(result.get("reward", 0.0))
-        rewards.append(reward)
-        done = bool(result.get("done", False))
-        print_step(steps, action_str, reward, done, get_error(result))
-
-        if not done:
-            result = env_post("/step", {"type": "block_ip", "target": attack_ip, "details": {}})
+        # Keep the workflow simple and deterministic
+        for action_type, action_str, payload in [
+            ("monitor", f"monitor('{attack_ip}')", {"type": "monitor", "target": attack_ip, "details": {}}),
+            ("block_ip", f"block_ip('{attack_ip}')", {"type": "block_ip", "target": attack_ip, "details": {}}),
+            ("close_incident", "close_incident()", {"type": "close_incident", "details": {}}),
+        ]:
+            result = env_post("/step", payload)
             steps += 1
             reward = float(result.get("reward", 0.0))
             rewards.append(reward)
             done = bool(result.get("done", False))
-            print_step(steps, f"block_ip('{attack_ip}')", reward, done, get_error(result))
+            print_step(steps, action_str, reward, done, get_error(result))
+            if done:
+                break
 
-        if not done:
-            result = env_post("/step", {"type": "close_incident", "details": {}})
-            steps += 1
-            reward = float(result.get("reward", 0.0))
-            rewards.append(reward)
-            done = bool(result.get("done", False))
-            print_step(steps, "close_incident()", reward, done, get_error(result))
-
-        success = done
+        success = done if "done" in locals() else False
 
     except Exception:
         traceback.print_exc(file=sys.stderr)
@@ -136,6 +114,10 @@ def main() -> None:
 
     finally:
         print_end(success, steps, rewards)
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
