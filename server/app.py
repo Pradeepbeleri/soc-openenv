@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Literal
 
 from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
@@ -15,7 +15,7 @@ def root():
 
 
 class ResetRequest(BaseModel):
-    task: Optional[str] = "easy"
+    task: Optional[Literal["task_1", "task_2", "task_3"]] = "task_1"
 
 
 class StepRequest(BaseModel):
@@ -32,7 +32,7 @@ def health():
 @app.post("/reset")
 def reset(req: Optional[ResetRequest] = Body(default=None)):
     try:
-        task = req.task if req and req.task else "easy"
+        task = req.task if req and req.task else "task_1"
         observation = env.reset(task=task)
         return observation
     except ValueError as e:
@@ -56,8 +56,12 @@ def step(req: StepRequest):
 
 def main():
     import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=7860)
 
-    uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
+
+if __name__ == "__main__":
+    main()
+
 
 
 if __name__ == "__main__":
