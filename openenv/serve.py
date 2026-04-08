@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Literal
+
 from env.environment import SOCEnvironment
 
 app = FastAPI()
@@ -8,7 +9,7 @@ env = SOCEnvironment()
 
 
 class ResetRequest(BaseModel):
-    task: Optional[str] = "easy"
+    task: Optional[Literal["task_1", "task_2", "task_3"]] = "task_1"
 
 
 class StepRequest(BaseModel):
@@ -24,7 +25,7 @@ def health():
 
 @app.post("/reset")
 def reset(req: ResetRequest):
-    return {"state": env.reset(task=req.task or "easy")}
+    return {"state": env.reset(task=req.task or "task_1")}
 
 
 @app.get("/state")
