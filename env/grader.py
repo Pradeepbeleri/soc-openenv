@@ -50,11 +50,7 @@ def grade_action(task: str, action: Dict[str, Any]):
     elif task == "task_3":
         reward = grade_task_3(action)
     else:
-        reward = 0.01
-
-    done = False
-    error = None
-    return reward, done, error
+        reward = 0.50
 
     done = False
     error = None
