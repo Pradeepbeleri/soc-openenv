@@ -7,9 +7,9 @@ class SOCEnvironment:
     def __init__(self):
         self.state = self._initial_state()
 
-    def _initial_state(self) -> EnvironmentState:
+    def _initial_state(self, task: str = "task_1") -> EnvironmentState:
         return EnvironmentState(
-            task="task_1",
+            task=task,
             attack_ip="192.168.1.234",
             alerts=[
                 Alert(
@@ -32,8 +32,7 @@ class SOCEnvironment:
         )
 
     def reset(self, task: str = "task_1") -> Dict[str, Any]:
-        self.state = self._initial_state()
-        self.state.task = task
+        self.state = self._initial_state(task=task)
         return self.state.model_dump()
 
     def get_state(self) -> Dict[str, Any]:
@@ -41,18 +40,21 @@ class SOCEnvironment:
 
     def _grade(self, action: Dict[str, Any]) -> float:
         if self.state.task == "task_1":
-            return grade_task_1(action)
+            reward = grade_task_1(action)
         elif self.state.task == "task_2":
-            return grade_task_2(action)
+            reward = grade_task_2(action)
         elif self.state.task == "task_3":
-            return grade_task_3(action)
-        return 0.01
+            reward = grade_task_3(action)
+        else:
+            reward = 0.01
+
+        return max(0.01, min(0.99, float(reward)))
 
     def step(self, action: Dict[str, Any]) -> Dict[str, Any]:
         if self.state.done:
             return StepResult(
                 observation=self.state.model_dump(),
-                reward=0.0,
+                reward=0.01,
                 done=True,
                 info={"error": "Environment already completed"},
             ).model_dump()
@@ -62,19 +64,18 @@ class SOCEnvironment:
         done = self.state.step_count >= self.state.max_steps
         error = None
 
-        self.state.score += float(reward)
-
+        self.state.score += reward
         self.state.history.append(f"{action.get('type')}:{action.get('target')}")
 
         if done:
             self.state.done = True
 
-        if self.state.done and self.state.score >= 1.0:
+        if self.state.score >= 1.0:
             self.state.score = 0.99
 
         return StepResult(
             observation=self.state.model_dump(),
-            reward=float(reward),
+            reward=reward,
             done=self.state.done,
             info={"error": error},
         ).model_dump()
