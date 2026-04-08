@@ -6,17 +6,14 @@ from typing import Any, Dict, List, Optional
 import requests
 from openai import OpenAI
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+API_BASE_URL = os.environ["API_BASE_URL"]
+API_KEY = os.environ["API_KEY"]
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
-HF_TOKEN = os.getenv("HF_TOKEN")
 ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
-
-if HF_TOKEN is None:
-    raise ValueError("HF_TOKEN environment variable is required")
 
 client = OpenAI(
     base_url=API_BASE_URL,
-    api_key=HF_TOKEN,
+    api_key=API_KEY,
 )
 
 
@@ -63,6 +60,25 @@ def get_error(result: Dict[str, Any]) -> Optional[Any]:
     return None
 
 
+def get_llm_action(task: str, attack_ip: str) -> str:
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {
+                "role": "user",
+                "content": f"Choose the next best action for task={task} and ip={attack_ip}. "
+                           f"Return only one of: monitor, block_ip, close_incident.",
+            }
+        ],
+    )
+    text = response.choices[0].message.content.strip().lower()
+    if "block" in text:
+        return "block_ip"
+    if "close" in text:
+        return "close_incident"
+    return "monitor"
+
+
 def main() -> None:
     rewards: List[float] = []
     steps = 0
@@ -78,12 +94,23 @@ def main() -> None:
         state = env_get("/state")
         attack_ip = state.get("attack_ip", "192.168.1.234")
 
-        result = env_post("/step", {"type": "monitor", "target": attack_ip, "details": {}})
+        first_action = get_llm_action(task, attack_ip)
+
+        if first_action == "monitor":
+            result = env_post("/step", {"type": "monitor", "target": attack_ip, "details": {}})
+            action_str = f"monitor('{attack_ip}')"
+        elif first_action == "block_ip":
+            result = env_post("/step", {"type": "block_ip", "target": attack_ip, "details": {}})
+            action_str = f"block_ip('{attack_ip}')"
+        else:
+            result = env_post("/step", {"type": "close_incident", "details": {}})
+            action_str = "close_incident()"
+
         steps += 1
         reward = float(result.get("reward", 0.0))
         rewards.append(reward)
         done = bool(result.get("done", False))
-        print_step(steps, f"monitor('{attack_ip}')", reward, done, get_error(result))
+        print_step(steps, action_str, reward, done, get_error(result))
 
         if not done:
             result = env_post("/step", {"type": "block_ip", "target": attack_ip, "details": {}})
