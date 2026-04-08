@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from env.models import EnvironmentState, StepResult, Alert, LogEntry
-from env.grader import grade_action 
+from env.grader import grade_task_1, grade_task_2, grade_task_3
 
 
 class SOCEnvironment:
@@ -9,7 +9,7 @@ class SOCEnvironment:
 
     def _initial_state(self) -> EnvironmentState:
         return EnvironmentState(
-            task="easy",
+            task="task_1",
             attack_ip="192.168.1.234",
             alerts=[
                 Alert(
@@ -31,13 +31,22 @@ class SOCEnvironment:
             ],
         )
 
-    def reset(self, task: str = "easy") -> Dict[str, Any]:
+    def reset(self, task: str = "task_1") -> Dict[str, Any]:
         self.state = self._initial_state()
         self.state.task = task
         return self.state.model_dump()
 
     def get_state(self) -> Dict[str, Any]:
         return self.state.model_dump()
+
+    def _grade(self, action: Dict[str, Any]) -> float:
+        if self.state.task == "task_1":
+            return grade_task_1(action)
+        elif self.state.task == "task_2":
+            return grade_task_2(action)
+        elif self.state.task == "task_3":
+            return grade_task_3(action)
+        return 0.01
 
     def step(self, action: Dict[str, Any]) -> Dict[str, Any]:
         if self.state.done:
@@ -49,16 +58,19 @@ class SOCEnvironment:
             ).model_dump()
 
         self.state.step_count += 1
-        reward, done, error = grade_action(self.state, action)
+        reward = self._grade(action)
+        done = self.state.step_count >= self.state.max_steps
+        error = None
 
         self.state.score += float(reward)
+
         self.state.history.append(f"{action.get('type')}:{action.get('target')}")
 
-        if done or self.state.step_count >= self.state.max_steps:
+        if done:
             self.state.done = True
 
         if self.state.done and self.state.score >= 1.0:
-            self.state.score = 1.0
+            self.state.score = 0.99
 
         return StepResult(
             observation=self.state.model_dump(),
