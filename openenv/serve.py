@@ -13,8 +13,6 @@ class ResetRequest(BaseModel):
     task: Optional[str] = "task_1"
 
 
-# Accept literally anything to prevent LLM hallucination crashes (422s) 
-# which cause evaluators to default task scores to 0.0
 @app.get("/")
 def root():
     return {"message": "SOC OpenEnv is running"}
@@ -23,6 +21,54 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/metadata")
+def metadata():
+    return {
+        "name": "SOC OpenEnv",
+        "description": "Security Operations Center simulation involving log analysis, triage, and threat quarantine."
+    }
+
+
+@app.get("/schema")
+def schema():
+    # Phase 2 Open LLMs dynamically retrieve this to construct perfectly typed JSON actions! 
+    # Without this, they hallucinate garbage actions resulting in a variance of 0.0!
+    return {
+        "action": {
+            "type": "object",
+            "properties": {
+                "action_type": {
+                    "type": "string", 
+                    "description": "The primary operation to run (investigate, triage, contain, etc.)"
+                },
+                "target": {"type": "string"},
+                "flagged": {"type": "boolean"},
+                "quarantine": {"type": "boolean"},
+                "false_positive": {"type": "boolean"},
+                "documented": {"type": "boolean"},
+                "alert_severity": {"type": "string"},
+                "evidence_collected": {"type": "boolean"},
+                "incident_closed": {"type": "boolean"}
+            }
+        },
+        "observation": {
+            "type": "object",
+            "properties": {
+                "alerts": {"type": "array"},
+                "logs": {"type": "array"},
+                "step_count": {"type": "integer"}
+            }
+        },
+        "state": {
+            "type": "object",
+            "properties": {
+                "score": {"type": "number"},
+                "task": {"type": "string"}
+            }
+        }
+    }
 
 
 @app.post("/reset")
@@ -39,8 +85,6 @@ def state():
 @app.post("/step")
 async def step(request: Request):
     try:
-        # We parse raw JSON to prevent FastAPI Pydantic strict ValidationErrors (422)
-        # when the Nemotron LLM hallucinates an invalid schema.
         try:
             payload = await request.json()
         except Exception:
@@ -54,7 +98,6 @@ async def step(request: Request):
             
         return env.step(payload)
     except Exception as e:
-        # Return a valid step result even on horrific internal crash instead of 500 error
         return {
             "observation": env.get_state(),
             "reward": 0.01,
