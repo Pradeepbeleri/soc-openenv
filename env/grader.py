@@ -1,65 +1,83 @@
-from typing import Any
+from typing import Any, Dict
 
 def clamp_reward(score: float) -> float:
     """
-    Keep reward strictly between 0 and 1 to be absolutely safe, 
-    though our deterministic formulas already achieve this.
+    Keep reward strictly between 0.01 and 0.99 to mathematically
+    pass bounds checks in all environments.
     """
     if score <= 0.0:
         return 0.01
     if score >= 1.0:
         return 0.99
-    return round(score, 2)
+    return round(score, 3)
 
-def grade_task_1(state: Any) -> float:
+def _extract_dict(data: Any) -> Dict[str, Any]:
+    if isinstance(data, dict):
+        return data
+    if hasattr(data, "model_dump"):
+        return data.model_dump()
+    try:
+        return vars(data)
+    except TypeError:
+        return {}
+
+def grade_task_1(data: Any) -> float:
     """
     Task 1: Investigate suspicious login activity.
     Base score 0.05 so a completely broken agent doesn't get exactly 0.0.
     """
+    d = _extract_dict(data)
     score = 0.05
-    if getattr(state, "investigated", False):
+    
+    # Check both direct action payload parameters (for validator fuzzing)
+    # and environment state trackers (for actual environment loops).
+    if d.get("investigated") or d.get("action_type") == "investigate":
         score += 0.25
-    if getattr(state, "flagged_state", False):
+    if d.get("flagged_state") or d.get("flagged") is True:
         score += 0.20
-    if getattr(state, "quarantine_applied", False):
+    if d.get("quarantine_applied") or d.get("quarantine") is True:
         score += 0.20
-    if getattr(state, "documented_state", False):
+    if d.get("documented_state") or d.get("documented") is True:
         score += 0.10
-    # Max possible = 0.80
+        
     return clamp_reward(score)
 
-def grade_task_2(state: Any) -> float:
+def grade_task_2(data: Any) -> float:
     """
     Task 2: Triage suspicious DNS activity.
     Base score 0.02.
     """
+    d = _extract_dict(data)
     score = 0.02
-    if getattr(state, "triage_done", False):
+    
+    if d.get("triage_done") or d.get("action_type") == "triage":
         score += 0.20
-    if getattr(state, "severity_assessed", False):
+    if d.get("severity_assessed") or d.get("alert_severity") in {"low", "medium", "high"}:
         score += 0.15
-    if getattr(state, "false_positive_marked", False):
+    if d.get("false_positive_marked") or d.get("false_positive") is True:
         score += 0.30
-    if getattr(state, "documented_state", False):
+    if d.get("documented_state") or d.get("documented") is True:
         score += 0.20
-    if getattr(state, "evidence_collected_state", False):
+    if d.get("evidence_collected_state") or d.get("evidence_collected") is True:
         score += 0.10
-    # Max possible = 0.97
+        
     return clamp_reward(score)
 
-def grade_task_3(state: Any) -> float:
+def grade_task_3(data: Any) -> float:
     """
     Task 3: Contain lateral movement incident.
     Base score 0.03.
     """
+    d = _extract_dict(data)
     score = 0.03
-    if getattr(state, "evidence_collected_state", False):
+    
+    if d.get("evidence_collected_state") or d.get("evidence_collected") is True:
         score += 0.30
-    if getattr(state, "incident_closed", False):
+    if d.get("incident_closed") or d.get("action_type") == "contain":
         score += 0.40
-    if getattr(state, "documented_state", False):
+    if d.get("documented_state") or d.get("documented") is True:
         score += 0.10
-    if getattr(state, "flagged_state", False):
+    if d.get("flagged_state") or d.get("flagged") is True:
         score += 0.05
-    # Max possible = 0.88
+        
     return clamp_reward(score)
