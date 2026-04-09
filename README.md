@@ -1,78 +1,60 @@
-# 🛡️ SOC Analyst OpenEnv
+# SOC Phishing Triage Environment
 
-A Reinforcement Learning environment for simulating genuine Security Operations Center (SOC) incident response tasks, built for the Meta PyTorch OpenEnv Hackathon.
+A realistic OpenEnv environment designed for training and evaluating autonomous Security Operations Center (SOC) agents in triaging complex phishing emails. 
 
-## 🌟 Motivation & Description
-Traditional RL environments often rely heavily on games or artificial benchmarks. **SOC Analyst OpenEnv** directly mirrors real-world cybersecurity triage. Real-world agents must filter through noisy authentication logs, investigate potential lateral movements, and successfully decide when to contain systems versus categorizing alerts as false positives. This open environment tests frontier models on multi-step reasoning, documentation consistency, and safe incident closure.
+## Motivation
+Email remains the primary attack vector for enterprise breaches. SOC analysts suffer from extreme alert fatigue analyzing thousands of suspicious emails daily. This environment provides a completely secure sandbox to train LLM-driven agents to read email headers, analyze body text, inspect attachments for malicious payloads, and confidently close out tickets. By testing against varying levels of obfuscation, it benchmarks whether frontier models possess the deductive reasoning necessary for Tier-1 SOC automation.
 
-## 🧩 Spaces
-
-### Observation Space
-The environment represents the system state as a typed `EnvironmentState` schema encompassing:
-- **`alerts`**: Real-time security events detailing `id`, `severity`, `type`, `description`, and `source_ip`.
-- **`logs`**: Historical context encompassing `timestamp`, `source_ip`, `destination_ip`, `action`, and `protocol`.
-- **`history`**: The iterative action trace of the investigation.
-- **`step_count` & `max_steps`**: Pacing constraints for agent execution loops.
-
-### Action Space
-Agents must execute JSON payloads interacting with the following deterministic features:
-- `action_type` *(str)*: `investigate`, `triage`, or `contain`.
-- `target` *(str)*: Specific entity, e.g., an IP address.
-- `alert_severity` *(str)*: `low`, `medium`, `high`.
-- Boolean Flags: `flagged`, `quarantine`, `false_positive`, `documented`, `evidence_collected`, `incident_closed`.
-
-## 🎯 Tasks & Difficulty Progression
-
-This environment challenges the agent over three structured difficulties. Graders use deterministically weighted properties yielding a reward strictly clamped between **(0.01 - 1.0)** per step. 
-
-| Task | Title | Difficulty | Expected Goal |
-| :--- | :--- | :--- | :--- |
-| **`task_1`** | **Investigate Suspicious Logins** | **Easy** | Identify brute force attacks. The agent should properly `investigate` the target IP, mark it `flagged`, `quarantine` the host, and ensure it is `documented`. |
-| **`task_2`** | **Triage Suspicious DNS Network** | **Medium** | Differentiate benign development noise from malicious activity. The agent must `triage`, identify `false_positive`, document properly, and assess `alert_severity`. |
-| **`task_3`** | **Contain Lateral Movement** | **Hard** | Manage high-risk escalation. Requires the agent to properly choose `contain`, ensure `evidence_collected`, and most importantly guarantee the `incident_closed` flag securely ends the episode. |
-
-## 📊 Baseline Scores
-
-A baseline model (using generic inference Fallbacks and standard reasoning patterns) reproduces the following optimal reward limits executing through all tasks sequentially:
-- **`task_1` (Optimal Baseline)**: Target Reward: **1.0** (Per step, capped at max episode limits)
-- **`task_2` (Optimal Baseline)**: Target Reward: **1.0** (Perfectly isolates the false positive schema)
-- **`task_3` (Optimal Baseline)**: Target Reward: **0.95 - 1.0** (Resolves within a single closure step)
-
-## 🚀 Setup & Execution
-
-### 1. Local Run
-Install the environment securely on your local desktop.
-```bash
-# Install specific OpenEnv dependencies
-pip install -r requirements.txt
-
-# Start the FastApi endpoint
-uvicorn openenv.serve:app --host 0.0.0.0 --port 7860
+## Action Space
+The agent interacts with the environment by outputting JSON payloads targeting the `/step` endpoint.
+```json
+{
+  "action_type": "<read_headers|read_body|scan_attachments|resolve>",
+  "decision": "<spam|phishing|malware|benign>" // Required only if action_type is 'resolve'
+}
 ```
 
-### 2. Connect the Inference Baseline
-The repository uses standard OpenAI format wrappers compatible with major LLMs.
-```bash
-# Map Model Variables
-export API_BASE_URL="https://api.openai.com/v1"
-export MODEL_NAME="gpt-4o-mini"
-export HF_TOKEN="your-api-key"
+## Observation Space
+The environment returns structured analytical data based on the action taken.
+```json
+{
+  "step_count": 1,
+  "action_output": "Sender Address: lottery-winner@free-cash-528.com"
+}
+```
 
-# Run Agent
+## Tasks & Difficulties
+- **`task_1` (Easy)**: Basic Spam. Features blatantly obvious keywords and sender domains. Agent resolves it quickly. Max Score: 0.90
+- **`task_2` (Medium)**: Phishing Attempt. Uses visual homoglyphs in the domain (e.g., paypaI instead of paypal) and high-urgency lock warnings. Agent must carefully parse the headers. Max Score: 0.95
+- **`task_3` (Hard)**: Stealth Macro Malware. The sender is a trusted internal vendor and the body is benign. The danger lies cleanly hidden inside a malicious macro attachment. The agent must proactively invoke `scan_attachments` before making a decision. Max Score: 0.99
+
+## Rewards
+The reward function yields partial fractional progress limits strictly clamped inside `(0.01, 0.99)`:
+- `+0.20`: For analyzing headers and body structure.
+- `+0.15`: For executing an attachment scan against advanced payloads.
+- `+0.35`: For mathematically selecting the perfect resolution closure.
+- `-0.10`: Penalty for classifying a malicious email incorrectly.
+
+## Setup Instructions
+```bash
+# Build the container
+docker build -t soc-openenv:latest .
+
+# Run the env server on port 7860
+docker run -p 7860:7860 soc-openenv:latest
+```
+
+## Baseline Validation
+Execute the deterministic baseline validation script using your OpenAI API keys:
+```bash
+export API_BASE_URL="https://api.openai.com/v1"
+export MODEL_NAME="gpt-4"
+export HF_TOKEN="your-token"
+
 python inference.py
 ```
 
-### 3. Containerized Runtime (Docker / HF Spaces)
-The submission complies fully with containerization standard deployments:
-```bash
-docker build -t soc-openenv .
-docker run -p 7860:7860 soc-openenv
-```
-
-## ✅ OpenEnv Validator Specs
-This project is certified against `openenv validate` checking for:
-- [x] Hugging Face Space endpoints returning valid `GET 200`
-- [x] Robust Dockerfile integration parsing
-- [x] 3 multi-stage tasks deploying between explicit 0.0-1.0 rewards 
-- [x] Pydantic modeled data parameters across API definitions
-- [x] Structured Baseline Inference executing via `[START]`, `[STEP]`, and `[END]` JSON log streams.
+### Baseline Scores
+- `task_1`: Score = ~0.80
+- `task_2`: Score = ~0.80
+- `task_3`: Score = ~0.95

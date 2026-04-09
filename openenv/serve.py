@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from env.environment import SOCEnvironment
 
-app = FastAPI(title="OpenEnv SOC Environment")
+app = FastAPI(title="SOC Phishing Triage Environment")
 env = SOCEnvironment()
 
 
@@ -15,7 +15,7 @@ class ResetRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "SOC OpenEnv is running"}
+    return {"message": "SOC Phishing Triage is running"}
 
 
 @app.get("/health")
@@ -26,39 +26,33 @@ def health():
 @app.get("/metadata")
 def metadata():
     return {
-        "name": "SOC OpenEnv",
-        "description": "Security Operations Center simulation involving log analysis, triage, and threat quarantine."
+        "name": "SOC Email Triage",
+        "description": "SOC analyst training environment for triaging highly obfuscated phishing emails."
     }
 
 
 @app.get("/schema")
 def schema():
-    # Phase 2 Open LLMs dynamically retrieve this to construct perfectly typed JSON actions! 
-    # Without this, they hallucinate garbage actions resulting in a variance of 0.0!
     return {
         "action": {
             "type": "object",
             "properties": {
                 "action_type": {
                     "type": "string", 
-                    "description": "The primary operation to run (investigate, triage, contain, etc.)"
+                    "enum": ["read_headers", "read_body", "scan_attachments", "resolve"],
+                    "description": "The analytical action to take."
                 },
-                "target": {"type": "string"},
-                "flagged": {"type": "boolean"},
-                "quarantine": {"type": "boolean"},
-                "false_positive": {"type": "boolean"},
-                "documented": {"type": "boolean"},
-                "alert_severity": {"type": "string"},
-                "evidence_collected": {"type": "boolean"},
-                "incident_closed": {"type": "boolean"}
+                "decision": {
+                    "type": "string",
+                    "description": "If action_type is resolve, provide the decision (benign, spam, phishing, malware)."
+                }
             }
         },
         "observation": {
             "type": "object",
             "properties": {
-                "alerts": {"type": "array"},
-                "logs": {"type": "array"},
-                "step_count": {"type": "integer"}
+                "step_count": {"type": "integer"},
+                "action_output": {"type": "string"}
             }
         },
         "state": {
@@ -92,9 +86,6 @@ async def step(request: Request):
             
         if not isinstance(payload, dict):
             payload = {"payload_received": str(payload)}
-            
-        if payload.get("details") is None:
-            payload["details"] = {}
             
         return env.step(payload)
     except Exception as e:

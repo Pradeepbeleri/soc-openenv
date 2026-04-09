@@ -1,10 +1,7 @@
 from typing import Any, Dict
 
 def clamp_reward(score: float) -> float:
-    """
-    Keep reward strictly between 0.01 and 0.99 to mathematically
-    pass bounds checks in all environments.
-    """
+    """Ensure strictly strictly inside (0, 1) to pass bounds tests universally."""
     if score <= 0.0:
         return 0.01
     if score >= 1.0:
@@ -21,63 +18,32 @@ def _extract_dict(data: Any) -> Dict[str, Any]:
     except TypeError:
         return {}
 
-def grade_task_1(data: Any) -> float:
-    """
-    Task 1: Investigate suspicious login activity.
-    Base score 0.05 so a completely broken agent doesn't get exactly 0.0.
-    """
-    d = _extract_dict(data)
+def _base_score(d: Dict[str, Any], max_possible: float) -> float:
     score = 0.05
-    
-    # Check both direct action payload parameters (for validator fuzzing)
-    # and environment state trackers (for actual environment loops).
-    if d.get("investigated") or d.get("action_type") == "investigate":
-        score += 0.25
-    if d.get("flagged_state") or d.get("flagged") is True:
+    if d.get("headers_read"):
         score += 0.20
-    if d.get("quarantine_applied") or d.get("quarantine") is True:
+    if d.get("body_read"):
         score += 0.20
-    if d.get("documented_state") or d.get("documented") is True:
-        score += 0.10
+    if d.get("attachments_scanned"):
+        score += 0.15
         
-    return clamp_reward(score)
+    correct_resolution = d.get("correct_resolution", "unknown")
+    if d.get("resolution") == correct_resolution:
+        score += 0.35
+    elif d.get("resolution") is not None and d.get("resolution") != correct_resolution:
+        # Penalized down slightly for incorrect conclusion but retaining partial progress points
+        score -= 0.10
+        
+    return clamp_reward(min(score, max_possible))
+
+def grade_task_1(data: Any) -> float:
+    """Task 1: Basic Spam. Easy."""
+    return _base_score(_extract_dict(data), 0.90)
 
 def grade_task_2(data: Any) -> float:
-    """
-    Task 2: Triage suspicious DNS activity.
-    Base score 0.02.
-    """
-    d = _extract_dict(data)
-    score = 0.02
-    
-    if d.get("triage_done") or d.get("action_type") == "triage":
-        score += 0.20
-    if d.get("severity_assessed") or d.get("alert_severity") in {"low", "medium", "high"}:
-        score += 0.15
-    if d.get("false_positive_marked") or d.get("false_positive") is True:
-        score += 0.30
-    if d.get("documented_state") or d.get("documented") is True:
-        score += 0.20
-    if d.get("evidence_collected_state") or d.get("evidence_collected") is True:
-        score += 0.10
-        
-    return clamp_reward(score)
+    """Task 2: Phishing attempt. Medium."""
+    return _base_score(_extract_dict(data), 0.95)
 
 def grade_task_3(data: Any) -> float:
-    """
-    Task 3: Contain lateral movement incident.
-    Base score 0.03.
-    """
-    d = _extract_dict(data)
-    score = 0.03
-    
-    if d.get("evidence_collected_state") or d.get("evidence_collected") is True:
-        score += 0.30
-    if d.get("incident_closed") or d.get("action_type") == "contain":
-        score += 0.40
-    if d.get("documented_state") or d.get("documented") is True:
-        score += 0.10
-    if d.get("flagged_state") or d.get("flagged") is True:
-        score += 0.05
-        
-    return clamp_reward(score)
+    """Task 3: Stealth Macro malware. Hard."""
+    return _base_score(_extract_dict(data), 0.99)

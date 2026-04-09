@@ -1,104 +1,106 @@
-from typing import Any, Dict
+import copy
+from typing import Any, Dict, Optional
 
-from env.grader import grade_task_1, grade_task_2, grade_task_3
-from env.models import Alert, EnvironmentState, LogEntry, StepResult
+from pydantic import BaseModel
+
+from .models import EnvironmentState, StepResult
+import env.grader as grader
 
 class SOCEnvironment:
-    def __init__(self, task: str = "task_1"):
-        self.state = self._initial_state(task)
+    def __init__(self):
+        self.state = self._initial_state("task_1")
 
     def _initial_state(self, task: str) -> EnvironmentState:
+        state = EnvironmentState(task=task)
         if task == "task_1":
-            return EnvironmentState(
-                task="task_1",
-                alerts=[Alert(id="A-001", severity="high", type="bruteforce", description="Multiple failed logins from a single source IP", source_ip="192.168.1.50")],
-                logs=[LogEntry(timestamp="2026-04-09T08:00:00Z", source_ip="192.168.1.50", destination_ip="10.0.0.10", action="failed_login", protocol="tcp")]
-            )
-        if task == "task_2":
-            return EnvironmentState(
-                task="task_2",
-                alerts=[
-                    Alert(id="A-010", severity="medium", type="suspicious_dns", description="Unusual DNS traffic to known domain", source_ip="172.16.0.24"),
-                    Alert(id="A-011", severity="low", type="auth_noise", description="Repeated benign auth failures from test user", source_ip="172.16.0.11")
-                ],
-                logs=[LogEntry(timestamp="2026-04-09T08:10:00Z", source_ip="172.16.0.24", destination_ip="8.8.8.8", action="dns_query", protocol="udp")]
-            )
-        return EnvironmentState(
-            task="task_3",
-            alerts=[Alert(id="A-020", severity="high", type="lateral_movement", description="Possible lateral movement detected", source_ip="10.1.2.9")],
-            logs=[LogEntry(timestamp="2026-04-09T08:20:00Z", source_ip="10.1.2.9", destination_ip="10.1.2.20", action="remote_exec", protocol="tcp")]
-        )
+            state.sender_domain = "lottery-winner@free-cash-528.com"
+            state.email_body = "URGENT: YOU WON! Click here to claim your $5,000,000 instantly."
+            state.attachment_virus = False
+            state.correct_resolution = "spam"
+        elif task == "task_2":
+            state.sender_domain = "security-update@paypaI-support.com" # Fake L
+            state.email_body = "Your account has been locked due to suspicious activity. Log in at the prompt to unlock."
+            state.attachment_virus = False
+            state.correct_resolution = "phishing"
+        elif task == "task_3":
+            state.sender_domain = "john.doe@trusted-vendor.com"
+            state.email_body = "Hey, please review the attached Q4 invoicing manifest for sign-off. - John"
+            state.attachment_virus = True
+            state.correct_resolution = "malware"
+            
+        state.score = 0.01
+        return state
 
     def reset(self, task: str = "task_1") -> Dict[str, Any]:
         self.state = self._initial_state(task)
-        return self.state.model_dump()
+        return self._get_observation()
+
+    def _get_observation(self) -> Dict[str, Any]:
+        return {
+            "step_count": self.state.step_count,
+            "max_steps": self.state.max_steps,
+            "done": self.state.done
+        }
 
     def get_state(self) -> Dict[str, Any]:
         return self.state.model_dump()
 
     def _grade(self, state: EnvironmentState) -> float:
+        d = state.model_dump()
         if state.task == "task_1":
-            return grade_task_1(state)
-        if state.task == "task_2":
-            return grade_task_2(state)
-        return grade_task_3(state)
+            return grader.grade_task_1(d)
+        elif state.task == "task_2":
+            return grader.grade_task_2(d)
+        elif state.task == "task_3":
+            return grader.grade_task_3(d)
+        return 0.01
 
     def step(self, action: Dict[str, Any]) -> Dict[str, Any]:
         if self.state.done:
-            final_safe_score = max(0.01, min(0.99, self.state.score))
-            # Must strictly place score inside info dict!
+            final_score = max(0.01, min(0.99, self.state.score))
             return StepResult(
-                observation=self.state.model_dump(),
+                observation=self._get_observation(),
                 reward=0.01,
                 done=True,
-                info={"error": "environment already completed", "score": final_safe_score},
-                score=final_safe_score
+                info={"error": "environment completed", "score": final_score},
+                score=final_score
             ).model_dump()
 
         self.state.step_count += 1
-        self.state.history.append(action)
-
         action_type = action.get("action_type")
-        if action_type == "investigate":
-            self.state.investigated = True
-        elif action_type == "triage":
-            self.state.triage_done = True
+        action_output = "Action taken."
 
-        if action.get("quarantine") is True:
-            self.state.quarantine_applied = True
-        if action.get("false_positive") is True:
-            self.state.false_positive_marked = True
-        if action.get("incident_closed") is True:
-            self.state.incident_closed = True
-        if action.get("evidence_collected") is True:
-            self.state.evidence_collected_state = True
-        if action.get("documented") is True:
-            self.state.documented_state = True
-        if action.get("flagged") is True:
-            self.state.flagged_state = True
-        if action.get("alert_severity") in {"low", "medium", "high"}:
-            self.state.severity_assessed = True
+        if action_type == "read_headers":
+            self.state.headers_read = True
+            action_output = f"Sender Address: {self.state.sender_domain}"
+        elif action_type == "read_body":
+            self.state.body_read = True
+            action_output = f"Body Content: {self.state.email_body}"
+        elif action_type == "scan_attachments":
+            self.state.attachments_scanned = True
+            action_output = "Threat Report: Malicious Macros Detected!" if self.state.attachment_virus else "Threat Report: Clean"
+        elif action_type == "resolve":
+            decision = action.get("decision")
+            self.state.resolution = str(decision).lower() if decision else "unknown"
+            self.state.done = True
+            action_output = f"Resolved task as {self.state.resolution}."
 
-        old_score = self.state.score
-        new_score = self._grade(self.state)
-        self.state.score = new_score
-        
-        delta = new_score - old_score
-        
-        # Reward bounded exactly inside bounds
-        reward = round(0.01 + delta * 0.9, 3)
-        reward = max(0.01, min(0.99, reward))
-
-        if self.state.step_count >= self.state.max_steps or self.state.incident_closed:
+        if self.state.step_count >= self.state.max_steps:
             self.state.done = True
 
-        final_safe_score = max(0.01, min(0.99, self.state.score))
+        new_score = self._grade(self.state)
+        delta = max(0.0, new_score - self.state.score)
+        reward = max(0.01, min(0.99, 0.01 + delta * 0.9))
+        self.state.score = new_score
 
-        # Explicitly pack 'score' inside the info dictionary to satisfy deep evaluators looking for info["score"]
+        obs = self._get_observation()
+        obs["action_output"] = action_output
+
+        safe_score = max(0.01, min(0.99, self.state.score))
         return StepResult(
-            observation=self.state.model_dump(),
+            observation=obs,
             reward=reward,
             done=self.state.done,
-            info={"error": None, "score": final_safe_score},
-            score=final_safe_score
+            info={"error": None, "score": safe_score},
+            score=safe_score
         ).model_dump()
