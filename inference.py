@@ -2,13 +2,13 @@ import os
 import sys
 from openai import OpenAI
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+API_BASE_URL = os.environ["API_BASE_URL"]
+API_KEY = os.environ["API_KEY"]
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
-HF_TOKEN = os.getenv("HF_TOKEN")
 
 
 def print_start():
-    print(f"[START] task=demo env=openenv model={MODEL_NAME}")
+    print(f"[START] model={MODEL_NAME}")
 
 
 def print_step(step: int, action: str, reward: float, done: bool, error: str | None):
@@ -27,23 +27,7 @@ def print_end(success: bool, steps: int, rewards: list[float]):
     )
 
 
-def run_inference():
-    if HF_TOKEN is None:
-        raise ValueError("HF_TOKEN environment variable is required")
-
-    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
-
-    # Replace this with your real episode logic if needed
-    prompt = "Hello from OpenEnv!"
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    return response.choices[0].message.content
-
-
-if __name__ == "__main__":
+def main():
     success = False
     steps = 0
     rewards = []
@@ -51,29 +35,47 @@ if __name__ == "__main__":
     try:
         print_start()
 
-        result = run_inference()
+        client = OpenAI(
+            base_url=API_BASE_URL,
+            api_key=API_KEY,
+        )
+
+        # This is the actual API call that should be observed by the proxy
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "user", "content": "Say hello in one short sentence."}
+            ],
+        )
+
+        answer = response.choices[0].message.content.strip()
         steps = 1
-        rewards.append(0.00)
+        rewards.append(0.0)
+
         print_step(
             step=1,
-            action="llm_call()",
+            action="llm_call",
             reward=0.00,
             done=True,
             error=None,
         )
 
+        print(answer)
         success = True
-        print(result)
 
     except Exception as e:
+        steps = max(steps, 1)
         print_step(
-            step=max(1, steps + 1),
-            action="llm_call()",
+            step=steps,
+            action="llm_call",
             reward=0.00,
             done=True,
             error=str(e),
         )
-        success = False
 
     finally:
         print_end(success=success, steps=steps, rewards=rewards)
+
+
+if __name__ == "__main__":
+    main()
