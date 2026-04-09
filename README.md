@@ -1,133 +1,167 @@
 # 🛡️ SOC Analyst OpenEnv
 
-Build an AI agent for incident response in a simulated Security Operations Center (SOC) workflow. This OpenEnv environment lets participants create reinforcement-learning agents that detect suspicious activity, monitor network behavior, block malicious IPs, and complete incident response actions in a structured workflow.
+A Reinforcement Learning environment for Security Operations Center (SOC) incident response tasks, built for the Meta PyTorch OpenEnv Hackathon.
+
+This project provides a FastAPI-based OpenEnv-style environment with multiple graded security tasks, designed to be deployed on Hugging Face Spaces and evaluated through automated agentic workflows.
 
 ---
 
 ## 🌟 Features
 
-- ⚡ **Quick Setup** — Get running locally in seconds.
-- 🚀 **FastAPI-powered** — High-performance environment server.
-- 🔄 **Structured Workflow** — Real SOC incident response: Monitor → Block → Close.
-- 🤖 **LLM-Guided** — Built-in demo agent logic.
-- 🐳 **Dockerized** — Fully reproducible deployments.
-- 🤗 **HF Spaces Support** — Deploy and demo on Hugging Face easily.
-
----
-
-## 🛠️ Workflow
-
-The environment simulates a SOC incident where the agent must investigate and mitigate threats using a structured sequence:
-
-1. **Monitor** — Inspect the suspicious IP and gather evidence such as logs and activity.
-2. **Block IP** — Neutralize the threat by blocking the malicious IP.
-3. **Close Incident** — Finalize the response and submit the remediation report.
+- **3 graded SOC tasks**
+- **OpenEnv-style environment API**
+- **FastAPI server for deployment**
+- **Docker-based containerization**
+- **Hugging Face Spaces compatible**
+- **LLM-friendly inference script**
+- **Structured grading logic with bounded rewards**
 
 ---
 
 ## 📁 Project Structure
 
 ```text
-env/environment.py   # Core SOC environment logic
-env/models.py        # Data models for state, alerts, and logs
-env/grader.py        # Reward and scoring logic
-server/app.py        # FastAPI server with API endpoints
-inference.py         # Demo script for agent reasoning (LLM-driven)
-requirements.txt     # Python dependencies
-Dockerfile           # Container build file
-README.md            # Project documentation
-openenv.yaml
+project/
+├── env/
+│   ├── environment.py   # Core SOC environment logic
+│   ├── models.py        # Data models for alerts, logs, and state
+│   └── grader.py        # Reward and scoring logic
+├── openenv/
+│   ├── serve.py         # FastAPI app and API endpoints
+│   └── __init__.py
+├── server/
+│   └── app.py           # App re-export
+├── inference.py         # Demo script for agent reasoning
+├── requirements.txt    # Python dependencies
+├── Dockerfile          # Container build file
+├── README.md           # Project documentation
+└── openenv.yaml       # OpenEnv configuration
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🎯 Available Tasks
 
-### 1. Setup
-Create and activate a virtual environment:
+This environment includes three SOC-style tasks:
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate   # On Windows
-```
+1. **task_1** — Investigate suspicious login activity
+2. **task_2** — Triage suspicious DNS activity
+3. **task_3** — Contain lateral movement incident
 
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Run the Environment Server
-```bash
-uvicorn server.app:app --host 0.0.0.0 --port 7860
-```
-
-### 3. Run the Demo / Inference Script
-In a separate terminal, set your environment variables and run the agent:
-
-```bash
-# Set environment variables (PowerShell)
-$env:HF_TOKEN="your_api_key"
-$env:API_BASE_URL="https://api.openai.com/v1"
-$env:MODEL_NAME="gpt-4o-mini"
-$env:ENV_BASE_URL="http://localhost:7860"
-$env:TASK_NAME="easy"
-$env:BENCHMARK_NAME="soc-analyst-openenv"
-
-python inference.py
-```
+Each task has its own grader and returns a reward strictly between **0 and 1**.
 
 ---
 
 ## 🔌 API Endpoints
 
-| Endpoint | Method | Description |
+| Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| /reset | POST | Initialize a new incident scenario. |
-| /step | POST | Execute an action (monitor, block_ip, close_incident). |
-| /state | GET | Inspect the current environment state. |
+| `GET` | `/` | Root health message |
+| `GET` | `/health` | Health check |
+| `POST` | `/reset` | Reset the environment to a selected task |
+| `GET` | `/state` | Get current environment state |
+| `POST` | `/step` | Apply an action and receive reward |
 
 ---
 
-## 💡 LLM Integration
+## 🚀 Local Setup
 
-This project uses the OpenAI Python client to bridge LLMs with the SOC environment. The agent determines actions based on the observations returned from the server.
-
-```python
-from openai import OpenAI
-import os
-
-client = OpenAI(
-    base_url=os.environ["API_BASE_URL"],
-    api_key=os.environ["API_KEY"],
-)
-```
-
----
-
-## 🐳 Deployment
-
-Build and run with Docker:
-
+### 1. Clone the repository
 ```bash
-docker build -t soc-analyst-env .
-docker run -p 7860:7860 soc-analyst-env
+git clone <your-repo-url>
+cd <your-repo-name>
+```
+
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Run the server
+```bash
+uvicorn openenv.serve:app --host 0.0.0.0 --port 7860
+```
+
+### 4. Open in browser
+- [http://localhost:7860/](http://localhost:7860/)
+- [http://localhost:7860/health](http://localhost:7860/health)
+
+---
+
+## 💡 Example Usage
+
+### Reset the environment
+```bash
+curl -X POST "http://localhost:7860/reset" \
+  -H "Content-Type: application/json" \
+  -d '{"task":"task_1"}'
+```
+
+### Step through the environment
+```bash
+curl -X POST "http://localhost:7860/step" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action_type": "investigate",
+    "target": "malicious_ip",
+    "flagged": true,
+    "quarantine": true,
+    "documented": true
+  }'
 ```
 
 ---
 
-## ✅ Submission Checklist
+## 🤖 Inference Script
 
-- [x] Public GitHub repository
-- [x] Environment source code in `env/`
-- [x] `requirements.txt` with all dependencies
-- [x] `README.md` with clear documentation
-- [x] `inference.py` in the project root
-- [x] Deployed Hugging Face Spaces demo URL
-- [x] `Dockerfile` for reproducibility
-- [x] `openenv.yaml` for OpenEnv compliance
+The repository includes `inference.py` for LLM-based demo inference.
+
+### Environment variables
+- `API_BASE_URL` — API endpoint for the model
+- `MODEL_NAME` — model name
+- `HF_TOKEN` — Hugging Face token
+
+### Example:
+```bash
+export HF_TOKEN=your_token
+python inference.py
+```
 
 ---
+
+## 🐳 Docker
+
+### Build the container:
+```bash
+docker build -t soc-openenv .
+```
+
+### Run the container:
+```bash
+docker run -p 7860:7860 soc-openenv
+```
+
+---
+
+## 🚀 Deployment
+
+This project is designed to run on **Hugging Face Spaces** using Docker.
+
+Make sure:
+- The app starts successfully
+- The root route `/` returns a valid response
+- `openenv.serve:app` is the entrypoint
+
+---
+
+## ✅ Validation Notes
+
+This submission is designed to satisfy:
+- [x] Docker build success
+- [x] Hugging Face deployment
+- [x] OpenEnv compatibility
+- [x] 3+ tasks with graders
+- [x] Reward scores strictly between 0 and 1
 
 ## ⚖️ License
 For hackathon submission and educational use.
