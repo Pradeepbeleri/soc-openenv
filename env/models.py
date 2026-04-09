@@ -1,5 +1,5 @@
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any
 
 
 class Alert(BaseModel):
@@ -20,13 +20,23 @@ class LogEntry(BaseModel):
 
 class EnvironmentState(BaseModel):
     task: str
-    attack_ip: str
     alerts: List[Alert] = Field(default_factory=list)
     logs: List[LogEntry] = Field(default_factory=list)
-    history: List[str] = Field(default_factory=list)
+    history: List[Dict[str, Any]] = Field(default_factory=list)
     step_count: int = 0
     done: bool = False
     max_steps: int = 5
+    score: float = 0.0
+    incident_closed: bool = False
+    quarantine_applied: bool = False
+    false_positive_marked: bool = False
+
+
+class StepResult(BaseModel):
+    observation: Dict[str, Any]
+    reward: float
+    done: bool
+    info: Dict[str, Any] = Field(default_factory=dict)
     score: float = 0.0
 
 
