@@ -1,38 +1,91 @@
-from typing import Dict, Any
-from env.models import EnvironmentState, StepResult, Alert, LogEntry
+from typing import Any, Dict
+
 from env.grader import grade_task_1, grade_task_2, grade_task_3
+from env.models import Alert, EnvironmentState, LogEntry, StepResult
 
 
 class SOCEnvironment:
-    def __init__(self):
-        self.state = self._initial_state()
+    def __init__(self, task: str = "task_1"):
+        self.state = self._initial_state(task)
 
-    def _initial_state(self, task: str = "task_1") -> EnvironmentState:
+    def _initial_state(self, task: str) -> EnvironmentState:
+        if task == "task_1":
+            return EnvironmentState(
+                task="task_1",
+                alerts=[
+                    Alert(
+                        id="A-001",
+                        severity="high",
+                        type="bruteforce",
+                        description="Multiple failed logins from a single source IP",
+                        source_ip="192.168.1.50",
+                    )
+                ],
+                logs=[
+                    LogEntry(
+                        timestamp="2026-04-09T08:00:00Z",
+                        source_ip="192.168.1.50",
+                        destination_ip="10.0.0.10",
+                        action="failed_login",
+                        protocol="tcp",
+                    )
+                ],
+            )
+
+        if task == "task_2":
+            return EnvironmentState(
+                task="task_2",
+                alerts=[
+                    Alert(
+                        id="A-010",
+                        severity="medium",
+                        type="suspicious_dns",
+                        description="Unusual DNS traffic to known domain",
+                        source_ip="172.16.0.24",
+                    ),
+                    Alert(
+                        id="A-011",
+                        severity="low",
+                        type="auth_noise",
+                        description="Repeated benign auth failures from test user",
+                        source_ip="172.16.0.11",
+                    ),
+                ],
+                logs=[
+                    LogEntry(
+                        timestamp="2026-04-09T08:10:00Z",
+                        source_ip="172.16.0.24",
+                        destination_ip="8.8.8.8",
+                        action="dns_query",
+                        protocol="udp",
+                    )
+                ],
+            )
+
         return EnvironmentState(
-            task=task,
-            attack_ip="192.168.1.234",
+            task="task_3",
             alerts=[
                 Alert(
-                    id="ALERT-001",
+                    id="A-020",
                     severity="high",
-                    type="suspicious_activity",
-                    description="Multiple failed login attempts detected",
-                    source_ip="192.168.1.234",
+                    type="lateral_movement",
+                    description="Possible lateral movement detected",
+                    source_ip="10.1.2.9",
                 )
             ],
             logs=[
                 LogEntry(
-                    timestamp="2026-04-07T12:00:00Z",
-                    source_ip="192.168.1.234",
-                    destination_ip="10.0.0.5",
-                    action="failed_login",
+                    timestamp="2026-04-09T08:20:00Z",
+                    source_ip="10.1.2.9",
+                    destination_ip="10.1.2.20",
+                    action="remote_exec",
                     protocol="tcp",
                 )
             ],
         )
 
     def reset(self, task: str = "task_1") -> Dict[str, Any]:
-        self.state = self._initial_state(task=task)
+        self.state = self._initial_state(task)
         return self.state.model_dump()
 
     def get_state(self) -> Dict[str, Any]:
@@ -40,15 +93,10 @@ class SOCEnvironment:
 
     def _grade(self, action: Dict[str, Any]) -> float:
         if self.state.task == "task_1":
-            reward = grade_task_1(action)
-        elif self.state.task == "task_2":
-            reward = grade_task_2(action)
-        elif self.state.task == "task_3":
-            reward = grade_task_3(action)
-        else:
-            reward = 0.50
-
-        return max(0.01, min(0.99, float(reward)))
+            return grade_task_1(action)
+        if self.state.task == "task_2":
+            return grade_task_2(action)
+        return grade_task_3(action)
 
     def step(self, action: Dict[str, Any]) -> Dict[str, Any]:
         if self.state.done:
@@ -56,26 +104,27 @@ class SOCEnvironment:
                 observation=self.state.model_dump(),
                 reward=0.01,
                 done=True,
-                info={"error": "Environment already completed"},
+                info={"error": "environment already completed"},
             ).model_dump()
 
         self.state.step_count += 1
         reward = self._grade(action)
-        done = self.state.step_count >= self.state.max_steps
-        error = None
-
         self.state.score += reward
-        self.state.history.append(f"{action.get('type')}:{action.get('target')}")
+        self.state.history.append(action)
 
-        if done:
+        if action.get("quarantine") is True:
+            self.state.quarantine_applied = True
+        if action.get("false_positive") is True:
+            self.state.false_positive_marked = True
+        if action.get("incident_closed") is True:
+            self.state.incident_closed = True
+
+        if self.state.step_count >= self.state.max_steps or self.state.incident_closed:
             self.state.done = True
-
-        if self.state.score >= 1.0:
-            self.state.score = 0.99
 
         return StepResult(
             observation=self.state.model_dump(),
             reward=reward,
             done=self.state.done,
-            info={"error": error},
+            info={"error": None},
         ).model_dump()
