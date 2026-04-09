@@ -1,10 +1,11 @@
+from typing import Any, Dict, Literal, Optional
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Any, Dict, Optional, Literal
 
 from env.environment import SOCEnvironment
 
-app = FastAPI()
+app = FastAPI(title="OpenEnv SOC Environment")
 env = SOCEnvironment()
 
 
@@ -13,9 +14,21 @@ class ResetRequest(BaseModel):
 
 
 class StepRequest(BaseModel):
-    type: str
+    action_type: str
     target: Optional[str] = None
+    flagged: Optional[bool] = None
+    quarantine: Optional[bool] = None
+    false_positive: Optional[bool] = None
+    documented: Optional[bool] = None
+    alert_severity: Optional[str] = None
+    evidence_collected: Optional[bool] = None
+    incident_closed: Optional[bool] = None
     details: Optional[Dict[str, Any]] = None
+
+
+@app.get("/")
+def root():
+    return {"message": "SOC OpenEnv is running"}
 
 
 @app.get("/health")
@@ -36,8 +49,9 @@ def state():
 @app.post("/step")
 def step(req: StepRequest):
     try:
-        return env.step(
-            {"type": req.type, "target": req.target, "details": req.details or {}}
-        )
+        payload = req.model_dump()
+        if payload.get("details") is None:
+            payload["details"] = {}
+        return env.step(payload)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
