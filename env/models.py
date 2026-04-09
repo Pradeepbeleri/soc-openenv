@@ -30,6 +30,12 @@ class EnvironmentState(BaseModel):
     incident_closed: bool = False
     quarantine_applied: bool = False
     false_positive_marked: bool = False
+    investigated: bool = False
+    triage_done: bool = False
+    evidence_collected_state: bool = False
+    documented_state: bool = False
+    flagged_state: bool = False
+    severity_assessed: bool = False
 
 
 class StepResult(BaseModel):
@@ -38,10 +44,3 @@ class StepResult(BaseModel):
     done: bool
     info: Dict[str, Any] = Field(default_factory=dict)
     score: float = 0.0
-
-
-class StepResult(BaseModel):
-    observation: Dict[str, Any]
-    reward: float
-    done: bool
-    info: Dict[str, Any] = Field(default_factory=dict)

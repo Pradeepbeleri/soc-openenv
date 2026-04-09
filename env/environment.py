@@ -91,26 +91,31 @@ class SOCEnvironment:
     def get_state(self) -> Dict[str, Any]:
         return self.state.model_dump()
 
-    def _grade(self, action: Dict[str, Any]) -> float:
-        if self.state.task == "task_1":
-            return grade_task_1(action)
-        if self.state.task == "task_2":
-            return grade_task_2(action)
-        return grade_task_3(action)
+    def _grade(self, state: EnvironmentState) -> float:
+        if state.task == "task_1":
+            return grade_task_1(state)
+        if state.task == "task_2":
+            return grade_task_2(state)
+        return grade_task_3(state)
 
     def step(self, action: Dict[str, Any]) -> Dict[str, Any]:
         if self.state.done:
             return StepResult(
                 observation=self.state.model_dump(),
-                reward=0.01,
+                reward=0.0,
                 done=True,
                 info={"error": "environment already completed"},
             ).model_dump()
 
         self.state.step_count += 1
-        reward = self._grade(action)
-        self.state.score += reward
         self.state.history.append(action)
+
+        # Update environment tracking state based on action payload
+        action_type = action.get("action_type")
+        if action_type == "investigate":
+            self.state.investigated = True
+        elif action_type == "triage":
+            self.state.triage_done = True
 
         if action.get("quarantine") is True:
             self.state.quarantine_applied = True
@@ -118,6 +123,21 @@ class SOCEnvironment:
             self.state.false_positive_marked = True
         if action.get("incident_closed") is True:
             self.state.incident_closed = True
+        if action.get("evidence_collected") is True:
+            self.state.evidence_collected_state = True
+        if action.get("documented") is True:
+            self.state.documented_state = True
+        if action.get("flagged") is True:
+            self.state.flagged_state = True
+        if action.get("alert_severity") in {"low", "medium", "high"}:
+            self.state.severity_assessed = True
+
+        old_score = self.state.score
+        new_score = self._grade(self.state)
+        
+        # Calculate shaped reward so that the cumulative sum explicitly matches new_score
+        reward = round(new_score - old_score, 2)
+        self.state.score = new_score
 
         if self.state.step_count >= self.state.max_steps or self.state.incident_closed:
             self.state.done = True
@@ -127,4 +147,5 @@ class SOCEnvironment:
             reward=reward,
             done=self.state.done,
             info={"error": None},
+            score=self.state.score
         ).model_dump()
