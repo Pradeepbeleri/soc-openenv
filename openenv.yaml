@@ -1,10 +1,3 @@
-version: "1.0"
-name: "soc-analyst-openenv"
-entry_point: "server.app:app"
-tasks:
-  - id: "task_1"
-    difficulty: "easy"
-  - id: "task_2"
-    difficulty: "medium"
-  - id: "task_3"
-    difficulty: "hard"
+name: soc-openenv
+version: 1.0.0
+entrypoint: openenv.serve:app
