@@ -1,13 +1,11 @@
 from typing import Dict, Any
 
-
 def clamp_open_interval(score: float) -> float:
     if score <= 0.0:
         return 0.01
     if score >= 1.0:
         return 0.99
     return round(score, 2)
-
 
 def grade_task_1(action: Dict[str, Any]) -> float:
     score = 0.0
@@ -19,7 +17,6 @@ def grade_task_1(action: Dict[str, Any]) -> float:
         score += 0.1
     return clamp_open_interval(score)
 
-
 def grade_task_2(action: Dict[str, Any]) -> float:
     score = 0.0
     if action.get("task_2_complete"):
@@ -30,7 +27,6 @@ def grade_task_2(action: Dict[str, Any]) -> float:
         score += 0.1
     return clamp_open_interval(score)
 
-
 def grade_task_3(action: Dict[str, Any]) -> float:
     score = 0.0
     if action.get("task_3_complete"):
@@ -40,7 +36,6 @@ def grade_task_3(action: Dict[str, Any]) -> float:
     if action.get("task_3_safe"):
         score += 0.1
     return clamp_open_interval(score)
-
 
 def grade_action(task: str, action: Dict[str, Any]):
     if task == "task_1":
