@@ -1,6 +1,6 @@
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
 
 from env.environment import SOCEnvironment
@@ -37,8 +37,9 @@ def health():
 
 
 @app.post("/reset")
-def reset(req: ResetRequest):
-    return {"state": env.reset(task=req.task or "task_1")}
+def reset(req: Optional[ResetRequest] = Body(default=None)):
+    task = req.task if req and req.task else "task_1"
+    return {"state": env.reset(task=task)}
 
 
 @app.get("/state")
