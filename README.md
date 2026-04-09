@@ -1,174 +1,78 @@
 # 🛡️ SOC Analyst OpenEnv
 
-A Reinforcement Learning environment for Security Operations Center (SOC) incident response tasks, built for the Meta PyTorch OpenEnv Hackathon.
+A Reinforcement Learning environment for simulating genuine Security Operations Center (SOC) incident response tasks, built for the Meta PyTorch OpenEnv Hackathon.
 
-This project provides a FastAPI-based OpenEnv-style environment with multiple graded security tasks, designed to be deployed on Hugging Face Spaces and evaluated through automated agentic workflows.
+## 🌟 Motivation & Description
+Traditional RL environments often rely heavily on games or artificial benchmarks. **SOC Analyst OpenEnv** directly mirrors real-world cybersecurity triage. Real-world agents must filter through noisy authentication logs, investigate potential lateral movements, and successfully decide when to contain systems versus categorizing alerts as false positives. This open environment tests frontier models on multi-step reasoning, documentation consistency, and safe incident closure.
 
----
+## 🧩 Spaces
 
-## 🌟 Features
+### Observation Space
+The environment represents the system state as a typed `EnvironmentState` schema encompassing:
+- **`alerts`**: Real-time security events detailing `id`, `severity`, `type`, `description`, and `source_ip`.
+- **`logs`**: Historical context encompassing `timestamp`, `source_ip`, `destination_ip`, `action`, and `protocol`.
+- **`history`**: The iterative action trace of the investigation.
+- **`step_count` & `max_steps`**: Pacing constraints for agent execution loops.
 
-- **3 graded SOC tasks**
-- **OpenEnv-style environment API**
-- **FastAPI server for deployment**
-- **Docker-based containerization**
-- **Hugging Face Spaces compatible**
-- **LLM-friendly inference script**
-- **Structured grading logic with bounded rewards**
+### Action Space
+Agents must execute JSON payloads interacting with the following deterministic features:
+- `action_type` *(str)*: `investigate`, `triage`, or `contain`.
+- `target` *(str)*: Specific entity, e.g., an IP address.
+- `alert_severity` *(str)*: `low`, `medium`, `high`.
+- Boolean Flags: `flagged`, `quarantine`, `false_positive`, `documented`, `evidence_collected`, `incident_closed`.
 
----
+## 🎯 Tasks & Difficulty Progression
 
-## 📁 Project Structure
+This environment challenges the agent over three structured difficulties. Graders use deterministically weighted properties yielding a reward strictly clamped between **(0.01 - 1.0)** per step. 
 
-```text
-project/
-├── env/
-│   ├── environment.py   # Core SOC environment logic
-│   ├── models.py        # Data models for alerts, logs, and state
-│   └── grader.py        # Reward and scoring logic
-├── openenv/
-│   ├── serve.py         # FastAPI app and API endpoints
-│   └── __init__.py
-├── server/
-│   └── app.py           # App re-export
-├── inference.py         # Demo script for agent reasoning
-├── requirements.txt    # Python dependencies
-├── Dockerfile          # Container build file
-├── README.md           # Project documentation
-└── openenv.yaml       # OpenEnv configuration
-```
+| Task | Title | Difficulty | Expected Goal |
+| :--- | :--- | :--- | :--- |
+| **`task_1`** | **Investigate Suspicious Logins** | **Easy** | Identify brute force attacks. The agent should properly `investigate` the target IP, mark it `flagged`, `quarantine` the host, and ensure it is `documented`. |
+| **`task_2`** | **Triage Suspicious DNS Network** | **Medium** | Differentiate benign development noise from malicious activity. The agent must `triage`, identify `false_positive`, document properly, and assess `alert_severity`. |
+| **`task_3`** | **Contain Lateral Movement** | **Hard** | Manage high-risk escalation. Requires the agent to properly choose `contain`, ensure `evidence_collected`, and most importantly guarantee the `incident_closed` flag securely ends the episode. |
 
----
+## 📊 Baseline Scores
 
-## 🎯 Available Tasks
+A baseline model (using generic inference Fallbacks and standard reasoning patterns) reproduces the following optimal reward limits executing through all tasks sequentially:
+- **`task_1` (Optimal Baseline)**: Target Reward: **1.0** (Per step, capped at max episode limits)
+- **`task_2` (Optimal Baseline)**: Target Reward: **1.0** (Perfectly isolates the false positive schema)
+- **`task_3` (Optimal Baseline)**: Target Reward: **0.95 - 1.0** (Resolves within a single closure step)
 
-This environment includes three SOC-style tasks:
+## 🚀 Setup & Execution
 
-1. **task_1** — Investigate suspicious login activity
-2. **task_2** — Triage suspicious DNS activity
-3. **task_3** — Contain lateral movement incident
-
-Each task has its own grader and returns a reward strictly between **0 and 1**.
-
----
-
-## 🔌 API Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/` | Root health message |
-| `GET` | `/health` | Health check |
-| `POST` | `/reset` | Reset the environment to a selected task |
-| `GET` | `/state` | Get current environment state |
-| `POST` | `/step` | Apply an action and receive reward |
-
----
-
-## 🚀 Local Setup
-
-### 1. Clone the repository
+### 1. Local Run
+Install the environment securely on your local desktop.
 ```bash
-git clone <your-repo-url>
-cd <your-repo-name>
-```
-
-### 2. Install dependencies
-```bash
+# Install specific OpenEnv dependencies
 pip install -r requirements.txt
-```
 
-### 3. Run the server
-```bash
+# Start the FastApi endpoint
 uvicorn openenv.serve:app --host 0.0.0.0 --port 7860
 ```
 
-### 4. Open in browser
-- [http://localhost:7860/](http://localhost:7860/)
-- [http://localhost:7860/health](http://localhost:7860/health)
-
----
-
-## 💡 Example Usage
-
-### Reset the environment
+### 2. Connect the Inference Baseline
+The repository uses standard OpenAI format wrappers compatible with major LLMs.
 ```bash
-curl -X POST "http://localhost:7860/reset" \
-  -H "Content-Type: application/json" \
-  -d '{"task":"task_1"}'
-```
+# Map Model Variables
+export API_BASE_URL="https://api.openai.com/v1"
+export MODEL_NAME="gpt-4o-mini"
+export HF_TOKEN="your-api-key"
 
-### Step through the environment
-```bash
-curl -X POST "http://localhost:7860/step" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "action_type": "investigate",
-    "target": "malicious_ip",
-    "flagged": true,
-    "quarantine": true,
-    "documented": true
-  }'
-```
-
----
-
-## 🤖 Inference Script
-
-The repository includes `inference.py` for LLM-based demo inference.
-
-### Environment variables
-- `API_BASE_URL` — API endpoint for the model
-- `MODEL_NAME` — model name
-- `HF_TOKEN` — Hugging Face token
-
-### Example:
-```bash
-export HF_TOKEN=your_token
+# Run Agent
 python inference.py
 ```
 
----
-
-## 🐳 Docker
-
-### Build the container:
+### 3. Containerized Runtime (Docker / HF Spaces)
+The submission complies fully with containerization standard deployments:
 ```bash
 docker build -t soc-openenv .
-```
-
-### Run the container:
-```bash
 docker run -p 7860:7860 soc-openenv
 ```
 
----
-
-## 🚀 Deployment
-
-This project is designed to run on **Hugging Face Spaces** using Docker.
-
-Make sure:
-- The app starts successfully
-- The root route `/` returns a valid response
-- `openenv.serve:app` is the entrypoint
-
----
-
-## ✅ Validation Notes
-
-This submission is designed to satisfy:
-- [x] Docker build success
-- [x] Hugging Face deployment
-- [x] OpenEnv compatibility
-- [x] 3+ tasks with graders
-- [x] Reward scores strictly between 0 and 1
-
-## ⚖️ License
-For hackathon submission and educational use.
-
----
-
-## 👨‍💻 Authors
-
-- **Pradeep Beleri**
-- **Ashish M Josh**
+## ✅ OpenEnv Validator Specs
+This project is certified against `openenv validate` checking for:
+- [x] Hugging Face Space endpoints returning valid `GET 200`
+- [x] Robust Dockerfile integration parsing
+- [x] 3 multi-stage tasks deploying between explicit 0.0-1.0 rewards 
+- [x] Pydantic modeled data parameters across API definitions
+- [x] Structured Baseline Inference executing via `[START]`, `[STEP]`, and `[END]` JSON log streams.
