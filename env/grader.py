@@ -2,11 +2,12 @@ from typing import Any, Dict
 
 def clamp_reward(score: float) -> float:
     """Ensure strictly strictly inside (0, 1) to pass bounds tests universally."""
+    score = round(score, 3)
     if score <= 0.0:
         return 0.01
     if score >= 1.0:
         return 0.99
-    return round(score, 3)
+    return score
 
 def _extract_dict(data: Any) -> Dict[str, Any]:
     if isinstance(data, dict):
@@ -43,6 +44,10 @@ def grade_task_1(data: Any) -> float:
 def grade_task_2(data: Any) -> float:
     """Task 2: Phishing attempt. Medium."""
     return _base_score(_extract_dict(data), 0.95)
+
+def grade_task_3(data: Any) -> float:
+    """Task 3: Stealth Macro malware. Hard."""
+    return _base_score(_extract_dict(data), 0.99)
 
 def grade_task_3(data: Any) -> float:
     """Task 3: Stealth Macro malware. Hard."""
